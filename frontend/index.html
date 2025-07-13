@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegendAI - Your Personal Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <span>LegendAI</span>
+                </div>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            
+            <button class="new-chat-btn" onclick="newChat()">
+                <i class="fas fa-plus"></i>
+                New Chat
+            </button>
+            
+            <div class="chat-history" id="chatHistory">
+                
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="chat-header">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="chat-title" id="chatTitle">LegendAI</div>
+                <div class="voice-controls">
+                    <button class="voice-toggle-btn" id="voiceToggle" title="Toggle Voice Assistant">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button class="voice-settings-btn" id="voiceSettings" title="Voice Settings">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-screen" id="welcomeScreen">
+                        <div class="welcome-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h1 class="welcome-title" id="welcomeTitle">Welcome to LegendAI</h1>
+                        <p class="welcome-subtitle" id="welcomeSubtitle">How can I help you today?</p>
+                        
+                        <div class="example-prompts">
+                            <div class="example-prompt" onclick="usePrompt('🎯 Set a goal today')">
+                                <div class="example-prompt-title">🎯 Set a goal today</div>
+                                <div class="example-prompt-desc">Let's plan something amazing</div>
+                            </div>
+                            <div class="example-prompt" onclick="usePrompt('🧘 Need a break tip?')">
+                                <div class="example-prompt-title">🧘 Need a break tip?</div>
+                                <div class="example-prompt-desc">Quick relaxation ideas</div>
+                            </div>
+                            <div class="example-prompt" onclick="usePrompt('💬 Inspire me with a quote')">
+                                <div class="example-prompt-title">💬 Inspire me with a quote</div>
+                                <div class="example-prompt-desc">Daily motivation boost</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sample messages for demonstration -->
+                    <div class="message user-message" style="display: none;">
+                        <div class="message-header">
+                            <div class="avatar user-avatar">U</div>
+                            <span>You</span>
+                        </div>
+                        <div class="message-content">
+                            Hello! Can you help me with something?
+                        </div>
+                    </div>
+                    
+                    <div class="message bot-message" style="display: none;">
+                        <div class="message-header">
+                            <div class="avatar bot-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <span>LegendAI</span>
+                        </div>
+                        <div class="message-content">
+                            <button class="voice-btn" title="Read aloud">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                            Of course! I'd be happy to help you with whatever you need. What would you like assistance with today?
+                        </div>
+                    </div>
+                </div>
+
+                <div class="voice-status" id="voiceStatus">
+                    <div class="voice-indicator">
+                        <i class="fas fa-microphone"></i>
+                        <span>Voice Assistant Ready</span>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <div class="input-area">
+                            <button class="voice-input-btn" id="voiceInputBtn" title="Voice Input">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <textarea id="user-input" placeholder="Message LegendAI..." rows="1"></textarea>
+                            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Settings Modal -->
+    <div class="modal-overlay" id="voiceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Voice Settings</h3>
+                <button class="modal-close" onclick="closeVoiceSettings()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label for="voiceRate">Speech Rate</label>
+                    <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="0.9">
+                    <span class="setting-value">0.9</span>
+                </div>
+                <div class="setting-group">
+                    <label for="voicePitch">Speech Pitch</label>
+                    <input type="range" id="voicePitch" min="0" max="2" step="0.1" value="1">
+                    <span class="setting-value">1.0</span>
+                </div>
+                <div class="setting-group">
+                    <label for="voiceVolume">Speech Volume</label>
+                    <input type="range" id="voiceVolume" min="0" max="1" step="0.1" value="0.8">
+                    <span class="setting-value">0.8</span>
+                </div>
+                <div class="setting-group">
+                    <label for="voiceSelect">Voice Selection</label>
+                    <select id="voiceSelect"></select>
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" id="autoSpeak" checked>
+                        Auto-speak AI responses
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
