@@ -5,7 +5,7 @@ let currentSpeech = null;
 let currentChatId = null;
 let chatSessions = {};
 
-const API_BASE_URL = 'window.location.origin';
+const API_BASE_URL = 'https://web-production-298a.up.railway.app';
 const STORAGE_KEYS = {
     CHAT_SESSIONS: 'legendai_chat_sessions',
     CURRENT_CHAT: 'legendai_current_chat',
