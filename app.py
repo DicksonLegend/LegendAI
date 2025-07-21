@@ -1,6 +1,6 @@
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
 import os
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 from groq import Groq
 from dotenv import load_dotenv
 import logging
@@ -8,11 +8,10 @@ import logging
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
-# Configure CORS properly for your Live Server
-CORS(app, origins=["http://127.0.0.1:5501", "http://localhost:5501"], 
-     methods=["GET", "POST", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization"])
+app = Flask(__name__, static_folder='.')
+
+# Configure CORS for production - Railway deployment
+CORS(app, origins=["*"])  # For Railway, we need to allow all origins
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,49 +20,35 @@ logger = logging.getLogger(__name__)
 # Set up the Groq API key
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-# Check if API key is loaded
 if not GROQ_API_KEY:
     logger.error("Groq API key not found in environment variables")
     raise ValueError("Groq API key is required")
 
-print(f"API Key loaded: {GROQ_API_KEY is not None}")
+client = Groq(api_key=GROQ_API_KEY)
+MODEL_NAME = "llama3-8b-8192"
 
-# Import Groq
-try:
-    from groq import Groq
-    client = Groq(api_key=GROQ_API_KEY)
-    logger.info("Groq client initialized successfully")
-except ImportError:
-    logger.error("Groq library not installed. Run: pip install groq")
-    raise
+# Serve static files (HTML, CSS, JS)
+@app.route('/')
+def serve_index():
+    return send_from_directory('.', 'index.html')
 
-# Model configuration - Available Groq models
-MODEL_NAME = "llama3-8b-8192"  # You can also use: "llama3-70b-8192", "mixtral-8x7b-32768", "gemma-7b-it"
-
-@app.route("/", methods=["GET"])
-def home():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "healthy",
-        "message": "AI Chatbot API is running",
-        "model": MODEL_NAME,
-        "api_key_loaded": GROQ_API_KEY is not None,
-        "provider": "Groq"
-    })
+@app.route('/<path:path>')
+def serve_static(path):
+    try:
+        return send_from_directory('.', path)
+    except Exception as e:
+        logger.error(f"Error serving static file {path}: {e}")
+        return jsonify({"error": "File not found"}), 404
 
 @app.route("/chat", methods=["POST", "OPTIONS"])
 def chat():
     """Main chat endpoint"""
-    # Handle preflight OPTIONS request
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
     
     try:
-        # Log the incoming request
         logger.info(f"Received request: {request.method} {request.url}")
-        logger.info(f"Request headers: {dict(request.headers)}")
         
-        # Validate request
         if not request.is_json:
             logger.warning("Non-JSON request received")
             return jsonify({"error": "Request must be JSON"}), 400
@@ -103,15 +88,15 @@ def chat():
         reply = response.choices[0].message.content.strip()
         logger.info("Successfully generated response from Groq")
         
+        # Changed from "reply" to "response" to match your frontend
         return jsonify({
-            "reply": reply,
+            "response": reply,
             "status": "success"
         })
 
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         
-        # Return a more specific error message for debugging
         if "api_key" in str(e).lower():
             return jsonify({
                 "error": "Groq API key issue. Please check your API key.",
@@ -130,7 +115,7 @@ def chat():
         else:
             return jsonify({
                 "error": "An internal error occurred. Please try again later.",
-                "details": str(e) if app.debug else "Internal server error"
+                "details": str(e)
             }), 500
 
 @app.route("/test", methods=["GET"])
@@ -158,12 +143,23 @@ def test_groq():
             "error": str(e)
         }), 500
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Health check endpoint for Railway"""
+    return jsonify({
+        "status": "healthy",
+        "service": "LegendAI",
+        "model": MODEL_NAME,
+        "api_key_loaded": GROQ_API_KEY is not None
+    })
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({"error": "Endpoint not found"}), 404
 
 @app.errorhandler(500)
 def internal_error(error):
+    logger.error(f"Internal server error: {error}")
     return jsonify({"error": "Internal server error"}), 500
 
 @app.errorhandler(405)
@@ -171,10 +167,7 @@ def method_not_allowed(error):
     return jsonify({"error": "Method not allowed"}), 405
 
 if __name__ == "__main__":
-    # Check if running in debug mode
-    debug_mode = os.getenv("FLASK_DEBUG", "False").lower() == "true"
-    
-    logger.info(f"Starting Flask app in {'debug' if debug_mode else 'production'} mode")
-    logger.info(f"Using Groq model: {MODEL_NAME}")
-    
-    app.run(debug=debug_mode, host="127.0.0.1", port=5001)
+    # Use Railway's PORT environment variable
+    port = int(os.environ.get("PORT", 5001))
+    # Bind to 0.0.0.0 for Railway (not 127.0.0.1)
+    app.run(host="0.0.0.0", port=port, debug=False)

@@ -5,7 +5,7 @@ let currentSpeech = null;
 let currentChatId = null;
 let chatSessions = {};
 
-const API_BASE_URL = 'http://localhost:5001';
+const API_BASE_URL = 'https://web-production-298a.up.railway.app';
 const STORAGE_KEYS = {
     CHAT_SESSIONS: 'legendai_chat_sessions',
     CURRENT_CHAT: 'legendai_current_chat',
@@ -755,14 +755,17 @@ async function sendMessage() {
         
         hideTypingIndicator();
         
-        // Add bot response from Groq
-        addMessage(data.reply, 'bot');
+        // Add safety check for API response
+        const botReply = data.reply || data.response || data.message || 'I received your message but couldn\'t generate a proper response.';
+        
+        // Add bot response from API
+        addMessage(botReply, 'bot');
         
     } catch (error) {
-        console.error('Error calling Groq API:', error);
+        console.error('Error calling API:', error);
         hideTypingIndicator();
         
-        // More specific error handling for Groq
+        // More specific error handling
         let errorMessage = 'Sorry, I encountered an error. Please try again.';
         
         if (error.message.includes('429')) {
@@ -771,11 +774,11 @@ async function sendMessage() {
             errorMessage = 'Authentication error. Please check the API configuration.';
         } else if (error.message.includes('500')) {
             errorMessage = 'Server error. Please try again later.';
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
             errorMessage = 'Network error. Please check your connection and try again.';
         }
         
-        // Fallback to default response if Groq API fails
+        // Fallback to default response if API fails
         let fallbackResponse = generateResponse(message);
         addMessage(`${errorMessage}\n\n${fallbackResponse}`, 'bot');
     }
@@ -821,6 +824,12 @@ function generateResponse(message) {
 }
 
 function addMessage(content, sender) {
+    // Add safety check for content
+    if (content === undefined || content === null) {
+        console.warn('addMessage received undefined/null content');
+        content = 'Message content unavailable';
+    }
+    
     // Add to DOM and save to history
     addMessageToDOM(content, sender, true);
 }
@@ -829,6 +838,15 @@ function addMessageToDOM(content, sender, saveToHistory = true) {
     const chatMessages = document.getElementById('chatMessages');
     if (!chatMessages) return;
     
+    // Safety check for content
+    if (content === undefined || content === null) {
+        console.warn('addMessageToDOM received undefined/null content');
+        content = 'Message content unavailable';
+    }
+    
+    // Ensure content is a string
+    content = String(content);
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${sender}-message`;
     
@@ -836,7 +854,9 @@ function addMessageToDOM(content, sender, saveToHistory = true) {
     const avatar = isUser ? 'You' : 'LegendAI';
     const avatarClass = isUser ? 'user-avatar' : 'bot-avatar';
     
-    const voiceButton = isUser ? '' : `<button class="voice-btn" onclick="speakMessage(this, '${content.replace(/'/g, "\\'")}')"><i class="fas fa-volume-up"></i></button>`;
+    // Escape quotes for onclick handler
+    const escapedContent = content.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    const voiceButton = isUser ? '' : `<button class="voice-btn" onclick="speakMessage(this, '${escapedContent}')"><i class="fas fa-volume-up"></i></button>`;
     
     messageDiv.innerHTML = `
         <div class="message-header">
@@ -870,6 +890,12 @@ function addMessageToDOM(content, sender, saveToHistory = true) {
 }
 
 function formatMessage(content) {
+    // Add safety check for undefined/null content
+    if (!content || typeof content !== 'string') {
+        console.warn('formatMessage received invalid content:', content);
+        return String(content || ''); // Convert to string or empty string
+    }
+    
     // Simple formatting for better readability
     return content
         .replace(/\n/g, '<br>')
@@ -881,6 +907,12 @@ function formatMessage(content) {
 }
 
 function speakMessage(button, text) {
+    // Safety check for text parameter
+    if (!text || typeof text !== 'string') {
+        console.warn('speakMessage received invalid text:', text);
+        return;
+    }
+    
     // Stop current speech if any
     if (currentSpeech) {
         speechSynthesis.cancel();
@@ -902,7 +934,16 @@ function speakMessage(button, text) {
         .replace(/```[\s\S]*?```/g, 'code block') // Replace code blocks
         .replace(/`[^`]*`/g, 'code') // Replace inline code
         .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold formatting
-        .replace(/\*(.*?)\*/g, '$1'); // Remove italic formatting
+        .replace(/\*(.*?)\*/g, '$1') // Remove italic formatting
+        .replace(/&bull;/g, '') // Remove bullet points
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+    
+    // Don't speak if text is empty after cleaning
+    if (!cleanText) {
+        console.warn('No text to speak after cleaning');
+        return;
+    }
     
     // Create new speech
     currentSpeech = new SpeechSynthesisUtterance(cleanText);
@@ -922,7 +963,8 @@ function speakMessage(button, text) {
     };
     
     // Handle speech error
-    currentSpeech.onerror = function() {
+    currentSpeech.onerror = function(event) {
+        console.error('Speech synthesis error:', event.error);
         button.classList.remove('speaking');
         button.innerHTML = '<i class="fas fa-volume-up"></i>';
         currentSpeech = null;
