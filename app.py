@@ -170,8 +170,5 @@ if __name__ == "__main__":
     # Use Railway's PORT environment variable
     port = int(os.environ.get("PORT", 5001))
     # Bind to 0.0.0.0 for Railway (not 127.0.0.1)
-<<<<<<< HEAD
     app.run(host="0.0.0.0", port=port, debug=False)
-=======
     app.run(host="0.0.0.0", port=port, debug=False)
->>>>>>> 4a729187038adc015ac9aee3258547efec77d650
