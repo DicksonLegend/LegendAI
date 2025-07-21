@@ -1,7 +1,6 @@
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from groq import Groq
 from dotenv import load_dotenv
 import logging
 
@@ -24,8 +23,24 @@ if not GROQ_API_KEY:
     logger.error("Groq API key not found in environment variables")
     raise ValueError("Groq API key is required")
 
-client = Groq(api_key=GROQ_API_KEY)
+# Initialize Groq client with error handling
+client = None
 MODEL_NAME = "llama3-8b-8192"
+
+def initialize_groq_client():
+    global client
+    try:
+        from groq import Groq
+        client = Groq(api_key=GROQ_API_KEY)
+        logger.info("Groq client initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize Groq client: {e}")
+        return False
+
+# Try to initialize the client
+if not initialize_groq_client():
+    logger.warning("Groq client not initialized - some endpoints may not work")
 
 # Serve static files (HTML, CSS, JS)
 @app.route('/')
@@ -45,6 +60,14 @@ def chat():
     """Main chat endpoint"""
     if request.method == "OPTIONS":
         return jsonify({"status": "ok"}), 200
+    
+    # Check if client is initialized
+    if client is None:
+        logger.error("Groq client not initialized")
+        return jsonify({
+            "error": "AI service not available. Please check configuration.",
+            "details": "Groq client initialization failed"
+        }), 503
     
     try:
         logger.info(f"Received request: {request.method} {request.url}")
@@ -88,7 +111,6 @@ def chat():
         reply = response.choices[0].message.content.strip()
         logger.info("Successfully generated response from Groq")
         
-        # Changed from "reply" to "response" to match your frontend
         return jsonify({
             "response": reply,
             "status": "success"
@@ -121,6 +143,13 @@ def chat():
 @app.route("/test", methods=["GET"])
 def test_groq():
     """Test endpoint to check Groq connection"""
+    if client is None:
+        return jsonify({
+            "status": "error",
+            "message": "Groq client not initialized",
+            "error": "Client initialization failed"
+        }), 500
+    
     try:
         response = client.chat.completions.create(
             model=MODEL_NAME,
@@ -150,7 +179,8 @@ def health_check():
         "status": "healthy",
         "service": "LegendAI",
         "model": MODEL_NAME,
-        "api_key_loaded": GROQ_API_KEY is not None
+        "api_key_loaded": GROQ_API_KEY is not None,
+        "client_initialized": client is not None
     })
 
 @app.errorhandler(404)
