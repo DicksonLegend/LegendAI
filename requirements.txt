@@ -3,8 +3,4 @@ flask-cors==4.0.0
 groq==0.4.1
 python-dotenv==1.0.0
 gunicorn==21.2.0
-<<<<<<< HEAD
 httpx==0.24.1
-=======
-httpx==0.24.1
->>>>>>> 44377c20b47aae1e46c2335353ed481e0e014b48
